@@ -23,10 +23,6 @@ export function buildApp() {
     origin: true,
   });
 
-  const serverUrl = process.env.VERCEL
-    ? '/'
-    : `http://${process.env.HOST || 'localhost'}:${process.env.PORT || 3000}`;
-
   app.register(swagger, {
     openapi: {
       openapi: '3.0.0',
@@ -35,12 +31,6 @@ export function buildApp() {
         description: 'API documentation for Loxodon',
         version: '1.0.0',
       },
-      servers: [
-        {
-          url: serverUrl,
-          description: 'API server',
-        },
-      ],
       components: {
         securitySchemes: {
           bearerAuth: {

@@ -3,6 +3,10 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 const UNPROTECTED_PREFIXES = ['/docs', '/health'];
 
 export async function authMiddleware(request: FastifyRequest, reply: FastifyReply) {
+  if (request.method === 'OPTIONS') {
+    return;
+  }
+
   const url = request.url;
   if (UNPROTECTED_PREFIXES.some((prefix) => url.startsWith(prefix))) {
     return;
