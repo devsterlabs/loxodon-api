@@ -23,10 +23,9 @@ export function buildApp() {
     origin: true,
   });
 
-  const serverUrl =
-    process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : `http://${process.env.HOST || 'localhost'}:${process.env.PORT || 3000}`;
+  const serverUrl = process.env.VERCEL
+    ? '/'
+    : `http://${process.env.HOST || 'localhost'}:${process.env.PORT || 3000}`;
 
   app.register(swagger, {
     openapi: {
