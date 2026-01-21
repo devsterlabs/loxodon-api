@@ -4,7 +4,7 @@ export const UserSchema = {
   properties: {
     oid: { type: 'string' },
     email: { type: 'string' },
-    role: { type: 'integer' },
+    role: { type: 'integer', nullable: true },
     tenantId: { type: 'string' },
     status: { type: 'string', enum: ['active', 'inactive', 'deleted'] },
     firstLogin: { type: 'string', format: 'date-time', nullable: true },
@@ -12,7 +12,7 @@ export const UserSchema = {
     createdAt: { type: 'string', format: 'date-time' },
     updatedAt: { type: 'string', format: 'date-time' },
   },
-  required: ['oid', 'email', 'role', 'tenantId', 'status', 'createdAt', 'updatedAt'],
+  required: ['oid', 'email', 'tenantId', 'status', 'createdAt', 'updatedAt'],
 };
 
 export const UpdateUserInputSchema = {
@@ -20,7 +20,7 @@ export const UpdateUserInputSchema = {
   type: 'object',
   properties: {
     email: { type: 'string' },
-    role: { type: 'integer' },
+    role: { type: 'integer', nullable: true },
     status: { type: 'string', enum: ['active', 'inactive'] },
   },
 };

@@ -41,4 +41,12 @@ export class CustomerService {
       },
     });
   }
+
+  static async deleteByTenantId(tenantId: string) {
+    return prisma.$transaction(async (tx) => {
+      await tx.user.deleteMany({ where: { tenantId } });
+      await tx.role.deleteMany({ where: { tenantID: tenantId } });
+      return tx.customer.delete({ where: { tenantId } });
+    });
+  }
 }

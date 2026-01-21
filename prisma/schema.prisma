@@ -39,7 +39,7 @@ model Role {
 model User {
   oid        String     @id
   email      String
-  roleId     Int
+  roleId     Int?
   tenantId   String
   status     UserStatus @default(active)
   firstLogin DateTime?
@@ -47,6 +47,6 @@ model User {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
-  role     Role     @relation(fields: [roleId], references: [id])
+  role     Role?    @relation(fields: [roleId], references: [id])
   customer Customer @relation(fields: [tenantId], references: [tenantId])
 }

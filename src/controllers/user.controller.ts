@@ -1,7 +1,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { UserService, type UpdateUserInput } from '../services/user.service.js';
 
-function mapUserRole<T extends { roleId: number }>(user: T) {
+function mapUserRole<T extends { roleId: number | null }>(user: T) {
   const { roleId, ...rest } = user;
   return { ...rest, role: roleId };
 }

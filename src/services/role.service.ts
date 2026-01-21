@@ -45,4 +45,17 @@ export class RoleService {
       },
     });
   }
+
+  static async createDefaultsForTenant(tenantID: string) {
+    const titles = ['Site Admin', 'Viewer', 'Manager'];
+    return prisma.role.createMany({
+      data: titles.map((title) => ({
+        title,
+        tenantID,
+        description: null,
+        permissions: [],
+      })),
+      skipDuplicates: true,
+    });
+  }
 }

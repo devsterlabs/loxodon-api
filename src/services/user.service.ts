@@ -3,7 +3,7 @@ import { prisma } from '../utils/prisma.js';
 
 export type UpdateUserInput = {
   email?: string;
-  role?: number;
+  role?: number | null;
   status?: UserStatus;
 };
 
@@ -24,6 +24,25 @@ export class UserService {
         roleId: input.role,
         status: input.status,
       },
+    });
+  }
+
+  static async createManyForTenant(
+    tenantId: string,
+    users: Array<{ oid: string; email: string }>,
+  ) {
+    if (users.length === 0) {
+      return { count: 0 };
+    }
+
+    return prisma.user.createMany({
+      data: users.map((user) => ({
+        oid: user.oid,
+        email: user.email,
+        tenantId,
+        roleId: null,
+      })),
+      skipDuplicates: true,
     });
   }
 }

@@ -1,5 +1,8 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { CustomerService, type CreateCustomerInput, type UpdateCustomerInput } from '../services/customer.service.js';
+import { getUsersFromEntraId } from '../services/entra-id.service.js';
+import { RoleService } from '../services/role.service.js';
+import { UserService } from '../services/user.service.js';
 
 export class CustomerController {
   static async getAll(request: FastifyRequest, reply: FastifyReply) {
@@ -64,6 +67,20 @@ export class CustomerController {
 
       const customer = await CustomerService.create({ domain, tenantId, autoSync });
 
+      try {
+        await RoleService.createDefaultsForTenant(tenantId);
+      } catch (error) {
+        request.log.error(error, 'Failed to create default roles for customer');
+      }
+
+      try {
+        const entraUsers = await getUsersFromEntraId(tenantId);
+        const users = entraUsers.map((user) => ({ oid: user.oid, email: user.email }));
+        await UserService.createManyForTenant(tenantId, users);
+      } catch (error) {
+        request.log.error(error, 'Failed to sync users from Entra ID');
+      }
+
       reply.code(201).send({
         success: true,
         data: customer,
@@ -102,6 +119,36 @@ export class CustomerController {
       reply.code(500).send({
         success: false,
         message: 'Failed to update customer',
+      });
+    }
+  }
+
+  static async delete(
+    request: FastifyRequest<{ Params: { tenantId: string } }>,
+    reply: FastifyReply,
+  ) {
+    try {
+      const { tenantId } = request.params;
+      const existing = await CustomerService.getByTenantId(tenantId);
+      if (!existing) {
+        reply.code(404).send({
+          success: false,
+          message: 'Customer not found',
+        });
+        return;
+      }
+
+      const deleted = await CustomerService.deleteByTenantId(tenantId);
+
+      reply.code(200).send({
+        success: true,
+        data: deleted,
+      });
+    } catch (error) {
+      request.log.error(error);
+      reply.code(500).send({
+        success: false,
+        message: 'Failed to delete customer',
       });
     }
   }
