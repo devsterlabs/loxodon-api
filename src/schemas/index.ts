@@ -1,4 +1,11 @@
-import { ErrorResponseSchema, HealthResponseSchema } from './common.schema.js';
+import {
+  ErrorResponseSchema,
+  HealthResponseSchema,
+  LoginStatsSchema,
+  LoginStatsResponseSchema,
+  StatsOverviewSchema,
+  StatsOverviewResponseSchema,
+} from './common.schema.js';
 import {
   CustomerSchema,
   CreateCustomerInputSchema,
@@ -29,6 +36,10 @@ import {
 export const schemas = [
   ErrorResponseSchema,
   HealthResponseSchema,
+  LoginStatsSchema,
+  LoginStatsResponseSchema,
+  StatsOverviewSchema,
+  StatsOverviewResponseSchema,
   CustomerSchema,
   CreateCustomerInputSchema,
   UpdateCustomerInputSchema,

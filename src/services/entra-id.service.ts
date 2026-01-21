@@ -24,6 +24,20 @@ interface AccessTokenResponse {
   expires_in: number;
 }
 
+interface SignInStatus {
+  errorCode?: number;
+}
+
+interface SignInEvent {
+  createdDateTime?: string;
+  status?: SignInStatus;
+}
+
+interface SignInResponse {
+  value: SignInEvent[];
+  "@odata.nextLink"?: string;
+}
+
 /**
  * Get access token for Microsoft Graph API using client credentials flow
  */
@@ -177,4 +191,98 @@ export async function getUsersFromEntraId(
       `Failed to get users from Entra ID: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
   }
+}
+
+async function fetchSignIns(
+  tenantId: string,
+  clientId: string,
+  clientSecret: string,
+  startIso: string,
+  endIso: string,
+): Promise<SignInEvent[]> {
+  const accessToken = await getAccessToken(tenantId, clientId, clientSecret);
+  const baseUrl = "https://graph.microsoft.com/v1.0/auditLogs/signIns";
+  const filter = `createdDateTime ge ${startIso} and createdDateTime le ${endIso}`;
+  let nextLink: string | undefined = `${baseUrl}?$select=createdDateTime,status&$top=999&$filter=${encodeURIComponent(
+    filter,
+  )}`;
+  const events: SignInEvent[] = [];
+
+  while (nextLink) {
+    const response = await fetch(nextLink, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        ConsistencyLevel: "eventual",
+      },
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Failed to fetch sign-ins from Graph API: ${response.status} ${errorText}`,
+      );
+    }
+    const data = (await response.json()) as SignInResponse;
+    events.push(...data.value);
+    nextLink = data["@odata.nextLink"];
+  }
+
+  return events;
+}
+
+export type LoginStatsRange = "today" | "last7days" | "lastmonth" | "lastyear";
+
+export async function getLoginStats(range: LoginStatsRange) {
+  const tenantId = process.env.ENTRA_ID_TENANT_ID || "";
+  const clientId = process.env.ENTRA_ID_CLIENT_ID || "";
+  const clientSecret = process.env.ENTRA_ID_CLIENT_SECRET || "";
+  if (!tenantId || !clientId || !clientSecret) {
+    throw new Error("Missing Entra ID configuration");
+  }
+
+  const now = new Date();
+  let start = new Date(now);
+  switch (range) {
+    case "today":
+      start = new Date(now);
+      start.setUTCHours(0, 0, 0, 0);
+      break;
+    case "last7days":
+      start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      break;
+    case "lastmonth":
+      start = new Date(now);
+      start.setUTCMonth(start.getUTCMonth() - 1);
+      break;
+    case "lastyear":
+      start = new Date(now);
+      start.setUTCFullYear(start.getUTCFullYear() - 1);
+      break;
+    default:
+      break;
+  }
+
+  const startIso = start.toISOString();
+  const endIso = now.toISOString();
+  const events = await fetchSignIns(tenantId, clientId, clientSecret, startIso, endIso);
+
+  let successCount = 0;
+  let failureCount = 0;
+  for (const event of events) {
+    const errorCode = event.status?.errorCode ?? 0;
+    if (errorCode === 0) {
+      successCount += 1;
+    } else {
+      failureCount += 1;
+    }
+  }
+
+  return {
+    range,
+    from: startIso,
+    to: endIso,
+    successCount,
+    failureCount,
+  };
 }

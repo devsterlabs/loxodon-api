@@ -10,6 +10,8 @@ import { customerRoutes } from './routes/customer.routes.js';
 import { userRoutes } from './routes/user.routes.js';
 import { roleRoutes } from './routes/role.routes.js';
 import { auditLogRoutes } from './routes/audit-log.routes.js';
+import { entraIdRoutes } from './routes/entra-id.routes.js';
+import { statsRoutes } from './routes/stats.routes.js';
 
 export function buildApp() {
   const app = Fastify({
@@ -60,6 +62,8 @@ export function buildApp() {
   app.register(userRoutes);
   app.register(roleRoutes);
   app.register(auditLogRoutes);
+  app.register(entraIdRoutes);
+  app.register(statsRoutes);
 
   app.get(
     '/health',
