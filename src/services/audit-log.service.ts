@@ -8,20 +8,26 @@ export type CreateAuditLogInput = {
 };
 
 export class AuditLogService {
-  static async getAll(page = 1, limit = 20, userId?: string) {
+  static async getAll(page = 1, limit = 20, userId?: string, tenantId?: string) {
     const safePage = Number.isFinite(page) && page > 0 ? page : 1;
     const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 20;
     const skip = (safePage - 1) * safeLimit;
-    const where = userId ? { userId } : undefined;
+    const where: Record<string, unknown> = {};
+    if (userId) {
+      where.userId = userId;
+    }
+    if (tenantId) {
+      where.tenantId = tenantId;
+    }
 
     const [items, total] = await prisma.$transaction([
       prisma.auditLog.findMany({
-        where,
+        where: Object.keys(where).length ? where : undefined,
         skip,
         take: safeLimit,
         orderBy: { createdAt: 'desc' },
       }),
-      prisma.auditLog.count({ where }),
+      prisma.auditLog.count({ where: Object.keys(where).length ? where : undefined }),
     ]);
 
     return {
@@ -55,10 +61,18 @@ export class AuditLogService {
     return this.create(input);
   }
 
-  static async getByDateRange(start?: Date, end?: Date, userId?: string) {
+  static async getByDateRange(
+    start?: Date,
+    end?: Date,
+    userId?: string,
+    tenantId?: string,
+  ) {
     const where: Record<string, unknown> = {};
     if (userId) {
       where.userId = userId;
+    }
+    if (tenantId) {
+      where.tenantId = tenantId;
     }
     if (start || end) {
       where.createdAt = {};

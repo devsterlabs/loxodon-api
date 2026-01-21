@@ -4,6 +4,7 @@ import { getUsersFromEntraId } from '../services/entra-id.service.js';
 import { UserService, type UpdateUserInput } from '../services/user.service.js';
 import { AuditLogService } from '../services/audit-log.service.js';
 import type { JwtPayload } from 'jsonwebtoken';
+import { getActorTenantId, hasGlobalAccess, isPlatformAdmin } from '../middleware/authorize.middleware.js';
 
 function getActorOid(request: FastifyRequest): string | undefined {
   const payload = request.user as JwtPayload | undefined;
@@ -27,23 +28,40 @@ async function safeLogAction(
   }
 }
 
-function mapUserRole<T extends { roleId: number | null }>(user: T) {
-  const { roleId, ...rest } = user;
-  return { ...rest, role: roleId };
+function mapUserRole<T extends { roleId: number | null; role?: unknown }>(user: T) {
+  const { roleId, role, ...rest } = user;
+  return { ...rest, roleId, role: role ?? null };
+}
+
+async function enforceSameTenant(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  tenantId: string,
+) {
+  if (await hasGlobalAccess(request)) return true;
+  const actorTenantId = await getActorTenantId(request);
+  if (!actorTenantId || actorTenantId !== tenantId) {
+    reply.code(403).send({ success: false, message: 'Forbidden' });
+    return false;
+  }
+  return true;
 }
 
 export class UserController {
   static async getByCustomer(
-    request: FastifyRequest<{ Querystring: { customerId?: string } }>,
+    request: FastifyRequest,
     reply: FastifyReply,
   ) {
     try {
-      const { customerId } = request.query;
+      const { customerId } = request.query as { customerId?: string };
       if (!customerId) {
         reply.code(400).send({
           success: false,
           message: 'customerId is required',
         });
+        return;
+      }
+      if (!(await enforceSameTenant(request, reply, customerId))) {
         return;
       }
 
@@ -88,11 +106,11 @@ export class UserController {
   }
 
   static async getByOid(
-    request: FastifyRequest<{ Params: { oid: string } }>,
+    request: FastifyRequest,
     reply: FastifyReply,
   ) {
     try {
-      const { oid } = request.params;
+      const { oid } = request.params as { oid?: string };
       if (!oid) {
         reply.code(400).send({
           success: false,
@@ -107,6 +125,9 @@ export class UserController {
           success: false,
           message: 'User not found',
         });
+        return;
+      }
+      if (!(await enforceSameTenant(request, reply, user.tenantId))) {
         return;
       }
 
@@ -124,11 +145,11 @@ export class UserController {
   }
 
   static async update(
-    request: FastifyRequest<{ Params: { oid: string }; Body: UpdateUserInput }>,
+    request: FastifyRequest,
     reply: FastifyReply,
   ) {
     try {
-      const { oid } = request.params;
+      const { oid } = request.params as { oid?: string };
       if (!oid) {
         reply.code(400).send({
           success: false,
@@ -145,8 +166,11 @@ export class UserController {
         });
         return;
       }
+      if (!(await enforceSameTenant(request, reply, existing.tenantId))) {
+        return;
+      }
 
-      const updated = await UserService.update(oid, request.body);
+      const updated = await UserService.update(oid, request.body as UpdateUserInput);
       reply.code(200).send({
         success: true,
         data: mapUserRole(updated),
@@ -168,11 +192,11 @@ export class UserController {
   }
 
   static async updateActivity(
-    request: FastifyRequest<{ Params: { oid: string } }>,
+    request: FastifyRequest,
     reply: FastifyReply,
   ) {
     try {
-      const { oid } = request.params;
+      const { oid } = request.params as { oid?: string };
       if (!oid) {
         reply.code(400).send({
           success: false,
@@ -187,6 +211,9 @@ export class UserController {
           success: false,
           message: 'User not found',
         });
+        return;
+      }
+      if (!(await enforceSameTenant(request, reply, result.user.tenantId))) {
         return;
       }
 

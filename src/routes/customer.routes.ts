@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { CustomerController } from '../controllers/customer.controller.js';
+import { requirePlatformAdmin } from '../middleware/authorize.middleware.js';
 
 export async function customerRoutes(app: FastifyInstance) {
   app.get(
@@ -13,6 +14,7 @@ export async function customerRoutes(app: FastifyInstance) {
           500: { $ref: 'ErrorResponse#' },
         },
       },
+      preHandler: requirePlatformAdmin,
     },
     CustomerController.getAll,
   );
@@ -36,6 +38,7 @@ export async function customerRoutes(app: FastifyInstance) {
           500: { $ref: 'ErrorResponse#' },
         },
       },
+      preHandler: requirePlatformAdmin,
     },
     CustomerController.getByTenantId,
   );
@@ -53,6 +56,7 @@ export async function customerRoutes(app: FastifyInstance) {
           500: { $ref: 'ErrorResponse#' },
         },
       },
+      preHandler: requirePlatformAdmin,
     },
     CustomerController.create,
   );
@@ -77,6 +81,7 @@ export async function customerRoutes(app: FastifyInstance) {
           500: { $ref: 'ErrorResponse#' },
         },
       },
+      preHandler: requirePlatformAdmin,
     },
     CustomerController.update,
   );
@@ -100,6 +105,7 @@ export async function customerRoutes(app: FastifyInstance) {
           500: { $ref: 'ErrorResponse#' },
         },
       },
+      preHandler: requirePlatformAdmin,
     },
     CustomerController.delete,
   );

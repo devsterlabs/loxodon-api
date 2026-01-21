@@ -9,11 +9,17 @@ export type UpdateUserInput = {
 
 export class UserService {
   static async getByCustomer(tenantId: string) {
-    return prisma.user.findMany({ where: { tenantId } });
+    return prisma.user.findMany({
+      where: { tenantId },
+      include: { role: true },
+    });
   }
 
   static async getByOid(oid: string) {
-    return prisma.user.findUnique({ where: { oid } });
+    return prisma.user.findUnique({
+      where: { oid },
+      include: { role: true },
+    });
   }
 
   static async update(oid: string, input: UpdateUserInput) {

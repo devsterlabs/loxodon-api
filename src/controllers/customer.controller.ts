@@ -47,11 +47,18 @@ export class CustomerController {
   }
 
   static async getByTenantId(
-    request: FastifyRequest<{ Params: { tenantId: string } }>,
+    request: FastifyRequest,
     reply: FastifyReply,
   ) {
     try {
-      const { tenantId } = request.params;
+      const { tenantId } = request.params as { tenantId?: string };
+      if (!tenantId) {
+        reply.code(400).send({
+          success: false,
+          message: 'tenantId is required',
+        });
+        return;
+      }
       const customer = await CustomerService.getByTenantId(tenantId);
 
       if (!customer) {
@@ -76,11 +83,12 @@ export class CustomerController {
   }
 
   static async create(
-    request: FastifyRequest<{ Body: CreateCustomerInput }>,
+    request: FastifyRequest,
     reply: FastifyReply,
   ) {
     try {
-      const { domain, tenantId, autoSync } = request.body;
+      const { domain, tenantId, autoSync, geolocationEnabled } =
+        request.body as CreateCustomerInput;
       if (!domain || !tenantId) {
         reply.code(400).send({
           success: false,
@@ -93,6 +101,12 @@ export class CustomerController {
 
       try {
         await RoleService.createDefaultsForTenant(tenantId);
+        if (geolocationEnabled) {
+          await RoleService.addPermissionsToSiteAdmin(tenantId, [
+            'location.read',
+            'location.update',
+          ]);
+        }
       } catch (error) {
         request.log.error(error, 'Failed to create default roles for customer');
       }
@@ -126,11 +140,18 @@ export class CustomerController {
   }
 
   static async update(
-    request: FastifyRequest<{ Params: { tenantId: string }; Body: UpdateCustomerInput }>,
+    request: FastifyRequest,
     reply: FastifyReply,
   ) {
     try {
-      const { tenantId } = request.params;
+      const { tenantId } = request.params as { tenantId?: string };
+      if (!tenantId) {
+        reply.code(400).send({
+          success: false,
+          message: 'tenantId is required',
+        });
+        return;
+      }
       const existing = await CustomerService.getByTenantId(tenantId);
       if (!existing) {
         reply.code(404).send({
@@ -140,11 +161,21 @@ export class CustomerController {
         return;
       }
 
-      const updated = await CustomerService.update(tenantId, request.body);
+      const { geolocationEnabled, ...rest } =
+        request.body as UpdateCustomerInput;
+      const updated = await CustomerService.update(tenantId, rest);
       reply.code(200).send({
         success: true,
         data: updated,
       });
+
+      if (typeof geolocationEnabled === 'boolean') {
+        try {
+          await RoleService.setGeolocationForSiteAdmin(tenantId, geolocationEnabled);
+        } catch (error) {
+          request.log.error(error, 'Failed to update Site Admin geolocation permissions');
+        }
+      }
 
       await safeLogAction(
         request,
@@ -162,11 +193,18 @@ export class CustomerController {
   }
 
   static async delete(
-    request: FastifyRequest<{ Params: { tenantId: string } }>,
+    request: FastifyRequest,
     reply: FastifyReply,
   ) {
     try {
-      const { tenantId } = request.params;
+      const { tenantId } = request.params as { tenantId?: string };
+      if (!tenantId) {
+        reply.code(400).send({
+          success: false,
+          message: 'tenantId is required',
+        });
+        return;
+      }
       const existing = await CustomerService.getByTenantId(tenantId);
       if (!existing) {
         reply.code(404).send({

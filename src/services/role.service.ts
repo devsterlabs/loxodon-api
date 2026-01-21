@@ -15,8 +15,10 @@ export type UpdateRoleInput = {
 };
 
 export class RoleService {
-  static async getAll() {
-    return prisma.role.findMany();
+  static async getAll(tenantID?: string) {
+    return prisma.role.findMany({
+      where: tenantID ? { tenantID } : undefined,
+    });
   }
 
   static async getById(id: number) {
@@ -35,7 +37,12 @@ export class RoleService {
   }
 
   static async update(id: number, input: UpdateRoleInput) {
-    return prisma.role.update({
+    const existing = await prisma.role.findUnique({ where: { id } });
+    if (!existing) {
+      throw new Error('Role not found');
+    }
+
+    const updated = await prisma.role.update({
       where: { id },
       data: {
         title: input.title,
@@ -44,6 +51,43 @@ export class RoleService {
         permissions: input.permissions,
       },
     });
+
+    const isSiteAdmin =
+      existing.title.trim().toLowerCase() === 'site admin';
+    if (isSiteAdmin) {
+      const allowedPermissions = new Set(updated.permissions ?? []);
+      const roles = await prisma.role.findMany({
+        where: {
+          tenantID: existing.tenantID,
+          id: { not: existing.id },
+        },
+      });
+      const updates = roles
+        .filter((role) => {
+          const title = role.title.trim().toLowerCase();
+          return title !== 'platform admin' && title !== 'platform-admin';
+        })
+        .map((role) => {
+          const nextPermissions = role.permissions.filter((perm) =>
+            allowedPermissions.has(perm),
+          );
+          const isSame =
+            nextPermissions.length === role.permissions.length &&
+            nextPermissions.every((perm, index) => perm === role.permissions[index]);
+          if (isSame) return null;
+          return prisma.role.update({
+            where: { id: role.id },
+            data: { permissions: nextPermissions },
+          });
+        })
+        .filter((update) => update !== null);
+
+      if (updates.length > 0) {
+        await prisma.$transaction(updates);
+      }
+    }
+
+    return updated;
   }
 
   static async createDefaultsForTenant(tenantID: string) {
@@ -56,6 +100,43 @@ export class RoleService {
         permissions: [],
       })),
       skipDuplicates: true,
+    });
+  }
+
+  static async addPermissionsToSiteAdmin(tenantID: string, permissions: string[]) {
+    if (!permissions.length) return null;
+    const siteAdmin = await prisma.role.findFirst({
+      where: {
+        tenantID,
+        title: { equals: 'Site Admin', mode: 'insensitive' },
+      },
+    });
+    if (!siteAdmin) return null;
+    const nextPermissions = Array.from(
+      new Set([...(siteAdmin.permissions ?? []), ...permissions]),
+    );
+    return prisma.role.update({
+      where: { id: siteAdmin.id },
+      data: { permissions: nextPermissions },
+    });
+  }
+
+  static async setGeolocationForSiteAdmin(tenantID: string, enabled: boolean) {
+    const siteAdmin = await prisma.role.findFirst({
+      where: {
+        tenantID,
+        title: { equals: 'Site Admin', mode: 'insensitive' },
+      },
+    });
+    if (!siteAdmin) return null;
+    const geoPermissions = ['location.read', 'location.update'];
+    const current = siteAdmin.permissions ?? [];
+    const nextPermissions = enabled
+      ? Array.from(new Set([...current, ...geoPermissions]))
+      : current.filter((perm) => !geoPermissions.includes(perm));
+    return prisma.role.update({
+      where: { id: siteAdmin.id },
+      data: { permissions: nextPermissions },
     });
   }
 }

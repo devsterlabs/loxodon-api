@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { AuditLogController } from '../controllers/audit-log.controller.js';
+import { requireAnyPermission, requirePermissions } from '../middleware/authorize.middleware.js';
 
 export async function auditLogRoutes(app: FastifyInstance) {
   app.get(
@@ -21,6 +22,7 @@ export async function auditLogRoutes(app: FastifyInstance) {
           500: { $ref: 'ErrorResponse#' },
         },
       },
+      preHandler: requireAnyPermission(['audit_logs.read', 'logs.read']),
     },
     AuditLogController.getAll,
   );
@@ -44,6 +46,7 @@ export async function auditLogRoutes(app: FastifyInstance) {
           500: { $ref: 'ErrorResponse#' },
         },
       },
+      preHandler: requireAnyPermission(['audit_logs.export', 'logs.export']),
     },
     AuditLogController.export,
   );
@@ -68,6 +71,7 @@ export async function auditLogRoutes(app: FastifyInstance) {
           500: { $ref: 'ErrorResponse#' },
         },
       },
+      preHandler: requireAnyPermission(['audit_logs.read', 'logs.read']),
     },
     AuditLogController.getById,
   );
@@ -85,6 +89,7 @@ export async function auditLogRoutes(app: FastifyInstance) {
           500: { $ref: 'ErrorResponse#' },
         },
       },
+      preHandler: requireAnyPermission(['audit_logs.write', 'logs.write']),
     },
     AuditLogController.create,
   );

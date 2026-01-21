@@ -1,6 +1,8 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { AuditLogService, type CreateAuditLogInput } from '../services/audit-log.service.js';
 import type { JwtPayload } from 'jsonwebtoken';
+import { getActorTenantId, hasGlobalAccess, isPlatformAdmin } from '../middleware/authorize.middleware.js';
+import { UserService } from '../services/user.service.js';
 
 function getActorOid(request: FastifyRequest): string | undefined {
   const payload = request.user as JwtPayload | undefined;
@@ -26,16 +28,31 @@ async function safeLogAction(
 
 export class AuditLogController {
   static async getAll(
-    request: FastifyRequest<{
-      Querystring: { page?: string; limit?: string; userId?: string };
-    }>,
+    request: FastifyRequest,
     reply: FastifyReply,
   ) {
     try {
-      const page = Number(request.query?.page ?? 1);
-      const limit = Number(request.query?.limit ?? 20);
-      const userId = request.query?.userId;
-      const result = await AuditLogService.getAll(page, limit, userId);
+      const { page: rawPage, limit: rawLimit, userId } = request.query as {
+        page?: string;
+        limit?: string;
+        userId?: string;
+      };
+      const isGlobal = await hasGlobalAccess(request);
+      const tenantId = isGlobal ? undefined : await getActorTenantId(request);
+      if (!tenantId && !isGlobal) {
+        reply.code(403).send({ success: false, message: 'Forbidden' });
+        return;
+      }
+      if (userId && tenantId) {
+        const user = await UserService.getByOid(userId);
+        if (!user || user.tenantId !== tenantId) {
+          reply.code(403).send({ success: false, message: 'Forbidden' });
+          return;
+        }
+      }
+      const page = Number(rawPage ?? 1);
+      const limit = Number(rawLimit ?? 20);
+      const result = await AuditLogService.getAll(page, limit, userId, tenantId);
       if (result.items.length > 0) {
         await safeLogAction(
           request,
@@ -61,11 +78,12 @@ export class AuditLogController {
   }
 
   static async getById(
-    request: FastifyRequest<{ Params: { id: string } }>,
+    request: FastifyRequest,
     reply: FastifyReply,
   ) {
     try {
-      const id = Number.parseInt(request.params.id, 10);
+      const { id: rawId } = request.params as { id?: string };
+      const id = Number.parseInt(rawId ?? '', 10);
       if (Number.isNaN(id)) {
         reply.code(400).send({
           success: false,
@@ -82,6 +100,14 @@ export class AuditLogController {
         });
         return;
       }
+      const isGlobal = await hasGlobalAccess(request);
+      if (!isGlobal) {
+        const tenantId = await getActorTenantId(request);
+        if (!tenantId || log.tenantId !== tenantId) {
+          reply.code(403).send({ success: false, message: 'Forbidden' });
+          return;
+        }
+      }
 
       reply.code(200).send({
         success: true,
@@ -97,17 +123,25 @@ export class AuditLogController {
   }
 
   static async create(
-    request: FastifyRequest<{ Body: CreateAuditLogInput }>,
+    request: FastifyRequest,
     reply: FastifyReply,
   ) {
     try {
-      const { tenantId, userId, action, description } = request.body;
+      const { tenantId, userId, action, description } = request.body as CreateAuditLogInput;
       if (!tenantId || !userId || !action || !description) {
         reply.code(400).send({
           success: false,
           message: 'tenantId, userId, action, description are required',
         });
         return;
+      }
+      const isGlobal = await hasGlobalAccess(request);
+      if (!isGlobal) {
+        const actorTenantId = await getActorTenantId(request);
+        if (!actorTenantId || tenantId !== actorTenantId) {
+          reply.code(403).send({ success: false, message: 'Forbidden' });
+          return;
+        }
       }
 
       const log = await AuditLogService.create({
@@ -131,18 +165,30 @@ export class AuditLogController {
   }
 
   static async export(
-    request: FastifyRequest<{
-      Querystring: { startDate?: string; endDate?: string; userId?: string };
-    }>,
+    request: FastifyRequest,
     reply: FastifyReply,
   ) {
     try {
-      const startDate = request.query?.startDate
-        ? new Date(request.query.startDate)
-        : undefined;
-      const endDate = request.query?.endDate
-        ? new Date(request.query.endDate)
-        : undefined;
+      const { startDate: rawStart, endDate: rawEnd, userId } = request.query as {
+        startDate?: string;
+        endDate?: string;
+        userId?: string;
+      };
+      const isGlobal = await hasGlobalAccess(request);
+      const tenantId = isGlobal ? undefined : await getActorTenantId(request);
+      if (!tenantId && !isGlobal) {
+        reply.code(403).send({ success: false, message: 'Forbidden' });
+        return;
+      }
+      if (userId && tenantId) {
+        const user = await UserService.getByOid(userId);
+        if (!user || user.tenantId !== tenantId) {
+          reply.code(403).send({ success: false, message: 'Forbidden' });
+          return;
+        }
+      }
+      const startDate = rawStart ? new Date(rawStart) : undefined;
+      const endDate = rawEnd ? new Date(rawEnd) : undefined;
       if (startDate && Number.isNaN(startDate.getTime())) {
         reply.code(400).send({
           success: false,
@@ -157,9 +203,13 @@ export class AuditLogController {
         });
         return;
       }
-      const userId = request.query?.userId;
 
-      const logs = await AuditLogService.getByDateRange(startDate, endDate, userId);
+      const logs = await AuditLogService.getByDateRange(
+        startDate,
+        endDate,
+        userId,
+        tenantId,
+      );
       if (logs.length > 0) {
         await safeLogAction(
           request,

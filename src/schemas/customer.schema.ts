@@ -19,6 +19,7 @@ export const CreateCustomerInputSchema = {
     domain: { type: 'string' },
     tenantId: { type: 'string' },
     autoSync: { type: 'boolean' },
+    geolocationEnabled: { type: 'boolean' },
   },
   required: ['domain', 'tenantId'],
 };
@@ -30,6 +31,7 @@ export const UpdateCustomerInputSchema = {
     domain: { type: 'string' },
     active: { type: 'boolean' },
     autoSync: { type: 'boolean' },
+    geolocationEnabled: { type: 'boolean' },
   },
 };
 

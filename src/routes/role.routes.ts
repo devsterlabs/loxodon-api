@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { RoleController } from '../controllers/role.controller.js';
+import { requirePermissions } from '../middleware/authorize.middleware.js';
 
 export async function roleRoutes(app: FastifyInstance) {
   app.get(
@@ -13,6 +14,7 @@ export async function roleRoutes(app: FastifyInstance) {
           500: { $ref: 'ErrorResponse#' },
         },
       },
+      preHandler: requirePermissions(['roles.read']),
     },
     RoleController.getAll,
   );
@@ -37,6 +39,7 @@ export async function roleRoutes(app: FastifyInstance) {
           500: { $ref: 'ErrorResponse#' },
         },
       },
+      preHandler: requirePermissions(['roles.read']),
     },
     RoleController.getById,
   );
@@ -54,6 +57,7 @@ export async function roleRoutes(app: FastifyInstance) {
           500: { $ref: 'ErrorResponse#' },
         },
       },
+      preHandler: requirePermissions(['roles.create']),
     },
     RoleController.create,
   );
@@ -79,6 +83,7 @@ export async function roleRoutes(app: FastifyInstance) {
           500: { $ref: 'ErrorResponse#' },
         },
       },
+      preHandler: requirePermissions(['roles.update']),
     },
     RoleController.update,
   );

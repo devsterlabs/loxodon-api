@@ -1,5 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import { UserController } from '../controllers/user.controller.js';
+import {
+  requireAnyPermission,
+  requirePermissions,
+  requireSelfOrPermission,
+  requireSelfOrPermissions,
+} from '../middleware/authorize.middleware.js';
 
 export async function userRoutes(app: FastifyInstance) {
   app.get(
@@ -21,6 +27,7 @@ export async function userRoutes(app: FastifyInstance) {
           500: { $ref: 'ErrorResponse#' },
         },
       },
+      preHandler: requireAnyPermission(['users.read', 'users.update']),
     },
     UserController.getByCustomer,
   );
@@ -45,6 +52,7 @@ export async function userRoutes(app: FastifyInstance) {
           500: { $ref: 'ErrorResponse#' },
         },
       },
+      preHandler: requireSelfOrPermissions(['users.read', 'users.update']),
     },
     UserController.getByOid,
   );
@@ -70,6 +78,7 @@ export async function userRoutes(app: FastifyInstance) {
           500: { $ref: 'ErrorResponse#' },
         },
       },
+      preHandler: requirePermissions(['users.update']),
     },
     UserController.update,
   );
@@ -94,6 +103,7 @@ export async function userRoutes(app: FastifyInstance) {
           500: { $ref: 'ErrorResponse#' },
         },
       },
+      preHandler: requireSelfOrPermission('users.update'),
     },
     UserController.updateActivity,
   );

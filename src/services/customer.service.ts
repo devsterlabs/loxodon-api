@@ -4,12 +4,14 @@ export type CreateCustomerInput = {
   domain: string;
   tenantId: string;
   autoSync?: boolean;
+  geolocationEnabled?: boolean;
 };
 
 export type UpdateCustomerInput = {
   domain?: string;
   active?: boolean;
   autoSync?: boolean;
+  geolocationEnabled?: boolean;
 };
 
 export class CustomerService {

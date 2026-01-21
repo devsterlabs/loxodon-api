@@ -4,7 +4,8 @@ export const UserSchema = {
   properties: {
     oid: { type: 'string' },
     email: { type: 'string' },
-    role: { type: 'integer', nullable: true },
+    roleId: { type: 'integer', nullable: true },
+    role: { $ref: 'Role#', nullable: true },
     tenantId: { type: 'string' },
     status: { type: 'string', enum: ['active', 'inactive', 'deleted'] },
     firstLogin: { type: 'string', format: 'date-time', nullable: true },
