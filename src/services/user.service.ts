@@ -45,4 +45,25 @@ export class UserService {
       skipDuplicates: true,
     });
   }
+
+  static async markMissingAsDeleted(tenantId: string, activeOids: string[]) {
+    if (activeOids.length === 0) {
+      return prisma.user.updateMany({
+        where: {
+          tenantId,
+          status: { not: 'deleted' },
+        },
+        data: { status: 'deleted' },
+      });
+    }
+
+    return prisma.user.updateMany({
+      where: {
+        tenantId,
+        oid: { notIn: activeOids },
+        status: { not: 'deleted' },
+      },
+      data: { status: 'deleted' },
+    });
+  }
 }

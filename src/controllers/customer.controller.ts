@@ -74,7 +74,7 @@ export class CustomerController {
       }
 
       try {
-        const entraUsers = await getUsersFromEntraId(tenantId);
+        const entraUsers = await getUsersFromEntraId(domain);
         const users = entraUsers.map((user) => ({ oid: user.oid, email: user.email }));
         await UserService.createManyForTenant(tenantId, users);
       } catch (error) {

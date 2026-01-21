@@ -1,4 +1,6 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import { CustomerService } from '../services/customer.service.js';
+import { getUsersFromEntraId } from '../services/entra-id.service.js';
 import { UserService, type UpdateUserInput } from '../services/user.service.js';
 
 function mapUserRole<T extends { roleId: number | null }>(user: T) {
@@ -19,6 +21,30 @@ export class UserController {
           message: 'customerId is required',
         });
         return;
+      }
+
+      const customer = await CustomerService.getByTenantId(customerId);
+      if (!customer) {
+        reply.code(404).send({
+          success: false,
+          message: 'Customer not found',
+        });
+        return;
+      }
+
+      try {
+        const entraUsers = await getUsersFromEntraId(customer.domain);
+        const usersToCreate = entraUsers.map((user) => ({
+          oid: user.oid,
+          email: user.email,
+        }));
+        await UserService.createManyForTenant(customerId, usersToCreate);
+        await UserService.markMissingAsDeleted(
+          customerId,
+          entraUsers.map((user) => user.oid),
+        );
+      } catch (error) {
+        request.log.error(error, 'Failed to sync users from Entra ID');
       }
 
       const users = await UserService.getByCustomer(customerId);

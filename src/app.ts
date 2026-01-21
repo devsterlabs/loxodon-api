@@ -20,7 +20,9 @@ export function buildApp() {
   }
 
   app.register(cors, {
-    origin: true,
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Authorization', 'Content-Type'],
   });
 
   app.register(swagger, {

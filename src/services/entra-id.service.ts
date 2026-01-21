@@ -73,6 +73,7 @@ async function fetchUsersFromEntraId(
   tenantId: string,
   clientId: string,
   clientSecret: string,
+  domain: string,
 ): Promise<EntraIdUser[]> {
   const accessToken = await getAccessToken(tenantId, clientId, clientSecret);
 
@@ -88,6 +89,7 @@ async function fetchUsersFromEntraId(
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
+          ConsistencyLevel: "eventual",
         },
       });
 
@@ -139,11 +141,12 @@ function convertEntraIdUserToAppUser(
  * Get users from Entra ID for a tenant and convert to application format
  */
 export async function getUsersFromEntraId(
-  tenantId: string,
+  domain: string,
 ): Promise<Array<{ email: string; name: string; oid: string }>> {
+  const tenantId = process.env.ENTRA_ID_TENANT_ID || "";
   const clientId = process.env.ENTRA_ID_CLIENT_ID || "";
   const clientSecret = process.env.ENTRA_ID_CLIENT_SECRET || "";
-  if (!tenantId || !clientId || !clientSecret) {
+  if (!tenantId || !clientId || !clientSecret || !domain) {
     return [];
   }
   try {
@@ -151,8 +154,17 @@ export async function getUsersFromEntraId(
       tenantId,
       clientId,
       clientSecret,
+      domain,
     );
-    const convertedUsers = entraUsers
+    const normalizedDomain = domain.trim().toLowerCase();
+    const filteredUsers = entraUsers.filter((user) => {
+      const mail = user.mail?.toLowerCase();
+      const upn = user.userPrincipalName?.toLowerCase();
+      const matchesMail = mail ? mail.endsWith(`@${normalizedDomain}`) : false;
+      const matchesUpn = upn ? upn.includes(`_${normalizedDomain}`) : false;
+      return matchesMail || matchesUpn;
+    });
+    const convertedUsers = filteredUsers
       .map(convertEntraIdUserToAppUser)
       .filter(
         (user): user is { email: string; name: string; oid: string } =>
