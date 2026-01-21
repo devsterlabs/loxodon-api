@@ -226,13 +226,6 @@ export class UserController {
         );
       }
 
-      await safeLogAction(
-        request,
-        result.user.tenantId,
-        'user.activity',
-        `User activity ${result.user.email}`,
-      );
-
       reply.code(200).send({
         success: true,
         data: mapUserRole(result.user),
