@@ -73,4 +73,28 @@ export async function userRoutes(app: FastifyInstance) {
     },
     UserController.update,
   );
+
+  app.put(
+    '/users/:oid/activity',
+    {
+      schema: {
+        description: 'Update user activity timestamps',
+        tags: ['Users'],
+        params: {
+          type: 'object',
+          properties: {
+            oid: { type: 'string' },
+          },
+          required: ['oid'],
+        },
+        response: {
+          200: { $ref: 'UserResponse#' },
+          400: { $ref: 'ErrorResponse#' },
+          404: { $ref: 'ErrorResponse#' },
+          500: { $ref: 'ErrorResponse#' },
+        },
+      },
+    },
+    UserController.updateActivity,
+  );
 }

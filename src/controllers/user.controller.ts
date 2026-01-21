@@ -135,4 +135,40 @@ export class UserController {
       });
     }
   }
+
+  static async updateActivity(
+    request: FastifyRequest<{ Params: { oid: string } }>,
+    reply: FastifyReply,
+  ) {
+    try {
+      const { oid } = request.params;
+      if (!oid) {
+        reply.code(400).send({
+          success: false,
+          message: 'Invalid user oid',
+        });
+        return;
+      }
+
+      const updated = await UserService.touchActivity(oid);
+      if (!updated) {
+        reply.code(404).send({
+          success: false,
+          message: 'User not found',
+        });
+        return;
+      }
+
+      reply.code(200).send({
+        success: true,
+        data: mapUserRole(updated),
+      });
+    } catch (error) {
+      request.log.error(error);
+      reply.code(500).send({
+        success: false,
+        message: 'Failed to update user activity',
+      });
+    }
+  }
 }

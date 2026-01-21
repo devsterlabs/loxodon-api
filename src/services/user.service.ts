@@ -27,6 +27,22 @@ export class UserService {
     });
   }
 
+  static async touchActivity(oid: string) {
+    const user = await prisma.user.findUnique({ where: { oid } });
+    if (!user) {
+      return null;
+    }
+
+    const now = new Date();
+    return prisma.user.update({
+      where: { oid },
+      data: {
+        lastActive: now,
+        firstLogin: user.firstLogin ?? now,
+      },
+    });
+  }
+
   static async createManyForTenant(
     tenantId: string,
     users: Array<{ oid: string; email: string }>,
