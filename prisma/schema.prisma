@@ -23,6 +23,7 @@ model Customer {
 
   users User[]
   roles Role[]
+  auditLogs AuditLog[]
 }
 
 model Role {
@@ -49,4 +50,17 @@ model User {
 
   role     Role?    @relation(fields: [roleId], references: [id])
   customer Customer @relation(fields: [tenantId], references: [tenantId])
+  auditLogs AuditLog[]
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  tenantId    String
+  userId      String
+  action      String
+  description String
+  createdAt   DateTime @default(now())
+
+  customer Customer @relation(fields: [tenantId], references: [tenantId])
+  user     User     @relation(fields: [userId], references: [oid])
 }

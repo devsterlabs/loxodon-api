@@ -2,6 +2,30 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { CustomerService } from '../services/customer.service.js';
 import { getUsersFromEntraId } from '../services/entra-id.service.js';
 import { UserService, type UpdateUserInput } from '../services/user.service.js';
+import { AuditLogService } from '../services/audit-log.service.js';
+import type { JwtPayload } from 'jsonwebtoken';
+
+function getActorOid(request: FastifyRequest): string | undefined {
+  const payload = request.user as JwtPayload | undefined;
+  if (typeof payload?.oid === 'string') return payload.oid;
+  if (typeof payload?.sub === 'string') return payload.sub;
+  return undefined;
+}
+
+async function safeLogAction(
+  request: FastifyRequest,
+  tenantId: string,
+  action: string,
+  description: string,
+) {
+  const userId = getActorOid(request);
+  if (!userId) return;
+  try {
+    await AuditLogService.createIfUserExists({ tenantId, userId, action, description });
+  } catch (error) {
+    request.log.warn(error, 'Failed to write audit log');
+  }
+}
 
 function mapUserRole<T extends { roleId: number | null }>(user: T) {
   const { roleId, ...rest } = user;
@@ -127,6 +151,13 @@ export class UserController {
         success: true,
         data: mapUserRole(updated),
       });
+
+      await safeLogAction(
+        request,
+        updated.tenantId,
+        'user.updated',
+        `User updated ${updated.email}`,
+      );
     } catch (error) {
       request.log.error(error);
       reply.code(500).send({
@@ -150,8 +181,8 @@ export class UserController {
         return;
       }
 
-      const updated = await UserService.touchActivity(oid);
-      if (!updated) {
+      const result = await UserService.touchActivity(oid);
+      if (!result) {
         reply.code(404).send({
           success: false,
           message: 'User not found',
@@ -159,9 +190,25 @@ export class UserController {
         return;
       }
 
+      if (result.firstLoginSet) {
+        await safeLogAction(
+          request,
+          result.user.tenantId,
+          'auth.login',
+          `User login ${result.user.email}`,
+        );
+      }
+
+      await safeLogAction(
+        request,
+        result.user.tenantId,
+        'user.activity',
+        `User activity ${result.user.email}`,
+      );
+
       reply.code(200).send({
         success: true,
-        data: mapUserRole(updated),
+        data: mapUserRole(result.user),
       });
     } catch (error) {
       request.log.error(error);

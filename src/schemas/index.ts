@@ -19,6 +19,12 @@ import {
   RoleResponseSchema,
   RoleListResponseSchema,
 } from './role.schema.js';
+import {
+  AuditLogSchema,
+  CreateAuditLogInputSchema,
+  AuditLogResponseSchema,
+  AuditLogListResponseSchema,
+} from './audit-log.schema.js';
 
 export const schemas = [
   ErrorResponseSchema,
@@ -37,4 +43,8 @@ export const schemas = [
   UpdateRoleInputSchema,
   RoleResponseSchema,
   RoleListResponseSchema,
+  AuditLogSchema,
+  CreateAuditLogInputSchema,
+  AuditLogResponseSchema,
+  AuditLogListResponseSchema,
 ];

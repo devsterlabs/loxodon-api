@@ -9,6 +9,7 @@ import { schemas } from './schemas/index.js';
 import { customerRoutes } from './routes/customer.routes.js';
 import { userRoutes } from './routes/user.routes.js';
 import { roleRoutes } from './routes/role.routes.js';
+import { auditLogRoutes } from './routes/audit-log.routes.js';
 
 export function buildApp() {
   const app = Fastify({
@@ -58,6 +59,7 @@ export function buildApp() {
   app.register(customerRoutes);
   app.register(userRoutes);
   app.register(roleRoutes);
+  app.register(auditLogRoutes);
 
   app.get(
     '/health',

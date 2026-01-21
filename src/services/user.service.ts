@@ -34,13 +34,15 @@ export class UserService {
     }
 
     const now = new Date();
-    return prisma.user.update({
+    const firstLoginSet = !user.firstLogin;
+    const updated = await prisma.user.update({
       where: { oid },
       data: {
         lastActive: now,
         firstLogin: user.firstLogin ?? now,
       },
     });
+    return { user: updated, firstLoginSet };
   }
 
   static async createManyForTenant(

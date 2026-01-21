@@ -3,6 +3,30 @@ import { CustomerService, type CreateCustomerInput, type UpdateCustomerInput } f
 import { getUsersFromEntraId } from '../services/entra-id.service.js';
 import { RoleService } from '../services/role.service.js';
 import { UserService } from '../services/user.service.js';
+import { AuditLogService } from '../services/audit-log.service.js';
+import type { JwtPayload } from 'jsonwebtoken';
+
+function getActorOid(request: FastifyRequest): string | undefined {
+  const payload = request.user as JwtPayload | undefined;
+  if (typeof payload?.oid === 'string') return payload.oid;
+  if (typeof payload?.sub === 'string') return payload.sub;
+  return undefined;
+}
+
+async function safeLogAction(
+  request: FastifyRequest,
+  tenantId: string,
+  action: string,
+  description: string,
+) {
+  const userId = getActorOid(request);
+  if (!userId) return;
+  try {
+    await AuditLogService.createIfUserExists({ tenantId, userId, action, description });
+  } catch (error) {
+    request.log.warn(error, 'Failed to write audit log');
+  }
+}
 
 export class CustomerController {
   static async getAll(request: FastifyRequest, reply: FastifyReply) {
@@ -81,6 +105,13 @@ export class CustomerController {
         request.log.error(error, 'Failed to sync users from Entra ID');
       }
 
+      await safeLogAction(
+        request,
+        tenantId,
+        'customer.created',
+        `Customer created for domain ${domain}`,
+      );
+
       reply.code(201).send({
         success: true,
         data: customer,
@@ -114,6 +145,13 @@ export class CustomerController {
         success: true,
         data: updated,
       });
+
+      await safeLogAction(
+        request,
+        tenantId,
+        'customer.updated',
+        `Customer updated for domain ${updated.domain}`,
+      );
     } catch (error) {
       request.log.error(error);
       reply.code(500).send({
@@ -123,33 +161,40 @@ export class CustomerController {
     }
   }
 
-  // static async delete(
-  //   request: FastifyRequest<{ Params: { tenantId: string } }>,
-  //   reply: FastifyReply,
-  // ) {
-  //   try {
-  //     const { tenantId } = request.params;
-  //     const existing = await CustomerService.getByTenantId(tenantId);
-  //     if (!existing) {
-  //       reply.code(404).send({
-  //         success: false,
-  //         message: 'Customer not found',
-  //       });
-  //       return;
-  //     }
+  static async delete(
+    request: FastifyRequest<{ Params: { tenantId: string } }>,
+    reply: FastifyReply,
+  ) {
+    try {
+      const { tenantId } = request.params;
+      const existing = await CustomerService.getByTenantId(tenantId);
+      if (!existing) {
+        reply.code(404).send({
+          success: false,
+          message: 'Customer not found',
+        });
+        return;
+      }
 
-  //     const deleted = await CustomerService.deleteByTenantId(tenantId);
+      const deleted = await CustomerService.deleteByTenantId(tenantId);
 
-  //     reply.code(200).send({
-  //       success: true,
-  //       data: deleted,
-  //     });
-  //   } catch (error) {
-  //     request.log.error(error);
-  //     reply.code(500).send({
-  //       success: false,
-  //       message: 'Failed to delete customer',
-  //     });
-  //   }
-  // }
+      reply.code(200).send({
+        success: true,
+        data: deleted,
+      });
+
+      await safeLogAction(
+        request,
+        tenantId,
+        'customer.deleted',
+        `Customer deleted for domain ${deleted.domain}`,
+      );
+    } catch (error) {
+      request.log.error(error);
+      reply.code(500).send({
+        success: false,
+        message: 'Failed to delete customer',
+      });
+    }
+  }
 }

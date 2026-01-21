@@ -1,5 +1,29 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { RoleService, type CreateRoleInput, type UpdateRoleInput } from '../services/role.service.js';
+import { AuditLogService } from '../services/audit-log.service.js';
+import type { JwtPayload } from 'jsonwebtoken';
+
+function getActorOid(request: FastifyRequest): string | undefined {
+  const payload = request.user as JwtPayload | undefined;
+  if (typeof payload?.oid === 'string') return payload.oid;
+  if (typeof payload?.sub === 'string') return payload.sub;
+  return undefined;
+}
+
+async function safeLogAction(
+  request: FastifyRequest,
+  tenantId: string,
+  action: string,
+  description: string,
+) {
+  const userId = getActorOid(request);
+  if (!userId) return;
+  try {
+    await AuditLogService.createIfUserExists({ tenantId, userId, action, description });
+  } catch (error) {
+    request.log.warn(error, 'Failed to write audit log');
+  }
+}
 
 export class RoleController {
   static async getAll(request: FastifyRequest, reply: FastifyReply) {
@@ -74,6 +98,13 @@ export class RoleController {
         success: true,
         data: role,
       });
+
+      await safeLogAction(
+        request,
+        role.tenantID,
+        'role.created',
+        `Role created ${role.title}`,
+      );
     } catch (error) {
       request.log.error(error);
       reply.code(500).send({
@@ -111,6 +142,13 @@ export class RoleController {
         success: true,
         data: updated,
       });
+
+      await safeLogAction(
+        request,
+        updated.tenantID,
+        'role.updated',
+        `Role updated ${updated.title}`,
+      );
     } catch (error) {
       request.log.error(error);
       reply.code(500).send({
