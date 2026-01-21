@@ -81,26 +81,26 @@ export async function customerRoutes(app: FastifyInstance) {
     CustomerController.update,
   );
 
-  app.delete(
-    '/customers/:tenantId',
-    {
-      schema: {
-        description: 'Delete a customer and all users by tenantId',
-        tags: ['Customers'],
-        params: {
-          type: 'object',
-          properties: {
-            tenantId: { type: 'string' },
-          },
-          required: ['tenantId'],
-        },
-        response: {
-          200: { $ref: 'CustomerResponse#' },
-          404: { $ref: 'ErrorResponse#' },
-          500: { $ref: 'ErrorResponse#' },
-        },
-      },
-    },
-    CustomerController.delete,
-  );
+  // app.delete(
+  //   '/customers/:tenantId',
+  //   {
+  //     schema: {
+  //       description: 'Delete a customer and all users by tenantId',
+  //       tags: ['Customers'],
+  //       params: {
+  //         type: 'object',
+  //         properties: {
+  //           tenantId: { type: 'string' },
+  //         },
+  //         required: ['tenantId'],
+  //       },
+  //       response: {
+  //         200: { $ref: 'CustomerResponse#' },
+  //         404: { $ref: 'ErrorResponse#' },
+  //         500: { $ref: 'ErrorResponse#' },
+  //       },
+  //     },
+  //   },
+  //   CustomerController.delete,
+  // );
 }

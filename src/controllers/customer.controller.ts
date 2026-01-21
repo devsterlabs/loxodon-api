@@ -123,33 +123,33 @@ export class CustomerController {
     }
   }
 
-  static async delete(
-    request: FastifyRequest<{ Params: { tenantId: string } }>,
-    reply: FastifyReply,
-  ) {
-    try {
-      const { tenantId } = request.params;
-      const existing = await CustomerService.getByTenantId(tenantId);
-      if (!existing) {
-        reply.code(404).send({
-          success: false,
-          message: 'Customer not found',
-        });
-        return;
-      }
+  // static async delete(
+  //   request: FastifyRequest<{ Params: { tenantId: string } }>,
+  //   reply: FastifyReply,
+  // ) {
+  //   try {
+  //     const { tenantId } = request.params;
+  //     const existing = await CustomerService.getByTenantId(tenantId);
+  //     if (!existing) {
+  //       reply.code(404).send({
+  //         success: false,
+  //         message: 'Customer not found',
+  //       });
+  //       return;
+  //     }
 
-      const deleted = await CustomerService.deleteByTenantId(tenantId);
+  //     const deleted = await CustomerService.deleteByTenantId(tenantId);
 
-      reply.code(200).send({
-        success: true,
-        data: deleted,
-      });
-    } catch (error) {
-      request.log.error(error);
-      reply.code(500).send({
-        success: false,
-        message: 'Failed to delete customer',
-      });
-    }
-  }
+  //     reply.code(200).send({
+  //       success: true,
+  //       data: deleted,
+  //     });
+  //   } catch (error) {
+  //     request.log.error(error);
+  //     reply.code(500).send({
+  //       success: false,
+  //       message: 'Failed to delete customer',
+  //     });
+  //   }
+  // }
 }
