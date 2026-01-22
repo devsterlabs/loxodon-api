@@ -169,7 +169,7 @@ export class RoleController {
       if (
         isSiteAdminRole &&
         payload.permissions !== undefined &&
-        !isPlatformAdmin(request)
+        !(await isPlatformAdmin(request))
       ) {
         reply.code(403).send({
           success: false,
