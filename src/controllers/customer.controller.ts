@@ -192,47 +192,4 @@ export class CustomerController {
     }
   }
 
-  static async delete(
-    request: FastifyRequest,
-    reply: FastifyReply,
-  ) {
-    try {
-      const { tenantId } = request.params as { tenantId?: string };
-      if (!tenantId) {
-        reply.code(400).send({
-          success: false,
-          message: 'tenantId is required',
-        });
-        return;
-      }
-      const existing = await CustomerService.getByTenantId(tenantId);
-      if (!existing) {
-        reply.code(404).send({
-          success: false,
-          message: 'Customer not found',
-        });
-        return;
-      }
-
-      const deleted = await CustomerService.deleteByTenantId(tenantId);
-
-      reply.code(200).send({
-        success: true,
-        data: deleted,
-      });
-
-      await safeLogAction(
-        request,
-        tenantId,
-        'customer.deleted',
-        `Customer deleted for domain ${deleted.domain}`,
-      );
-    } catch (error) {
-      request.log.error(error);
-      reply.code(500).send({
-        success: false,
-        message: 'Failed to delete customer',
-      });
-    }
-  }
 }
