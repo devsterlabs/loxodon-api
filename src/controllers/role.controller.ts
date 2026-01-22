@@ -3,6 +3,7 @@ import { RoleService, type CreateRoleInput, type UpdateRoleInput } from '../serv
 import { AuditLogService } from '../services/audit-log.service.js';
 import type { JwtPayload } from 'jsonwebtoken';
 import { getActorTenantId, hasGlobalAccess, isPlatformAdmin } from '../middleware/authorize.middleware.js';
+import { UserService } from '../services/user.service.js';
 
 function getActorOid(request: FastifyRequest): string | undefined {
   const payload = request.user as JwtPayload | undefined;
@@ -160,6 +161,31 @@ export class RoleController {
           message: 'Role not found',
         });
         return;
+      }
+      const actorOid = getActorOid(request);
+      const payload = request.body as UpdateRoleInput;
+      const isSiteAdminRole =
+        existing.title.trim().toLowerCase() === 'site admin';
+      if (
+        isSiteAdminRole &&
+        payload.permissions !== undefined &&
+        !isPlatformAdmin(request)
+      ) {
+        reply.code(403).send({
+          success: false,
+          message: 'Only platform admin can update Site Admin permissions',
+        });
+        return;
+      }
+      if (actorOid && payload.permissions !== undefined) {
+        const actor = await UserService.getByOid(actorOid);
+        if (actor?.roleId === existing.id) {
+          reply.code(403).send({
+            success: false,
+            message: 'Users cannot update permissions for their own role',
+          });
+          return;
+        }
       }
       const isGlobal = await hasGlobalAccess(request);
       if (!isGlobal) {

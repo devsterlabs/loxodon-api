@@ -158,6 +158,16 @@ export class UserController {
         return;
       }
 
+      const actorOid = getActorOid(request);
+      const payload = request.body as UpdateUserInput;
+      if (actorOid && actorOid === oid && payload.role !== undefined) {
+        reply.code(403).send({
+          success: false,
+          message: 'Users cannot update their own role',
+        });
+        return;
+      }
+
       const existing = await UserService.getByOid(oid);
       if (!existing) {
         reply.code(404).send({
@@ -170,7 +180,7 @@ export class UserController {
         return;
       }
 
-      const updated = await UserService.update(oid, request.body as UpdateUserInput);
+      const updated = await UserService.update(oid, payload);
       reply.code(200).send({
         success: true,
         data: mapUserRole(updated),
