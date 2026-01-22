@@ -34,21 +34,29 @@ const getSigningKey: jwt.GetPublicKeyOrSecret = (header, callback) => {
       callback(error);
       return;
     }
+    if (!key) {
+      callback(new Error('Signing key not found'));
+      return;
+    }
     callback(null, key.getPublicKey());
   });
 };
 
 async function verifyToken(token: string): Promise<JwtPayload> {
   return new Promise((resolve, reject) => {
+    const audience =
+      allowedAudiences.length > 0
+        ? (allowedAudiences as [string, ...string[]])
+        : undefined;
     jwt.verify(
       token,
       getSigningKey,
       {
         algorithms: ['RS256'],
-        audience: allowedAudiences.length ? allowedAudiences : undefined,
+        audience,
         issuer: issuerV2 && issuerV1 ? [issuerV2, issuerV1] : issuerV2 || issuerV1,
       },
-      (error, decoded) => {
+      (error: jwt.VerifyErrors | null, decoded: string | JwtPayload | undefined) => {
         if (error) {
           reject(error);
           return;

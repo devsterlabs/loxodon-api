@@ -33,6 +33,27 @@ function mapUserRole<T extends { roleId: number | null; role?: unknown }>(user: 
   return { ...rest, roleId, role: role ?? null };
 }
 
+async function syncUsersFromEntraInBackground(
+  tenantId: string,
+  domain: string,
+  request: FastifyRequest,
+) {
+  try {
+    const entraUsers = await getUsersFromEntraId(domain);
+    const usersToCreate = entraUsers.map((user) => ({
+      oid: user.oid,
+      email: user.email,
+    }));
+    await UserService.createManyForTenant(tenantId, usersToCreate);
+    await UserService.markMissingAsDeleted(
+      tenantId,
+      entraUsers.map((user) => user.oid),
+    );
+  } catch (error) {
+    request.log.error(error, 'Failed to sync users from Entra ID');
+  }
+}
+
 async function enforceSameTenant(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -74,27 +95,16 @@ export class UserController {
         return;
       }
 
-      try {
-        const entraUsers = await getUsersFromEntraId(customer.domain);
-        const usersToCreate = entraUsers.map((user) => ({
-          oid: user.oid,
-          email: user.email,
-        }));
-        await UserService.createManyForTenant(customerId, usersToCreate);
-        await UserService.markMissingAsDeleted(
-          customerId,
-          entraUsers.map((user) => user.oid),
-        );
-      } catch (error) {
-        request.log.error(error, 'Failed to sync users from Entra ID');
-      }
-
       const users = await UserService.getByCustomer(customerId);
       const mapped = users.map(mapUserRole);
       reply.code(200).send({
         success: true,
         data: mapped,
         count: mapped.length,
+      });
+
+      setImmediate(() => {
+        void syncUsersFromEntraInBackground(customerId, customer.domain, request);
       });
     } catch (error) {
       request.log.error(error);
