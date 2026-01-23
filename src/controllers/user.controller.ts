@@ -178,11 +178,18 @@ export class UserController {
         return;
       }
 
-      const existing = await UserService.getByOid(oid);
+      const existing = await UserService.getByOidWithCustomer(oid);
       if (!existing) {
         reply.code(404).send({
           success: false,
           message: 'User not found',
+        });
+        return;
+      }
+      if (existing.customer?.active === false) {
+        reply.code(403).send({
+          success: false,
+          message: 'Customer is inactive',
         });
         return;
       }
@@ -225,15 +232,31 @@ export class UserController {
         return;
       }
 
-      const result = await UserService.touchActivity(oid);
-      if (!result) {
+      const existing = await UserService.getByOidWithCustomer(oid);
+      if (!existing) {
         reply.code(404).send({
           success: false,
           message: 'User not found',
         });
         return;
       }
-      if (!(await enforceSameTenant(request, reply, result.user.tenantId))) {
+      if (existing.customer?.active === false) {
+        reply.code(403).send({
+          success: false,
+          message: 'Customer is inactive',
+        });
+        return;
+      }
+      if (!(await enforceSameTenant(request, reply, existing.tenantId))) {
+        return;
+      }
+
+      const result = await UserService.touchActivity(oid);
+      if (!result) {
+        reply.code(404).send({
+          success: false,
+          message: 'User not found',
+        });
         return;
       }
 

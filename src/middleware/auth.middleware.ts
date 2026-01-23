@@ -1,6 +1,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import jwt, { type JwtPayload } from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
+import { prisma } from '../utils/prisma.js';
 
 const UNPROTECTED_PREFIXES = ['/docs', '/health'];
 
@@ -111,11 +112,33 @@ export async function authMiddleware(request: FastifyRequest, reply: FastifyRepl
   try {
     const payload = await verifyToken(token);
     request.user = payload;
+    const oid = typeof payload.oid === 'string' ? payload.oid : payload.sub;
+    if (oid) {
+      const user = await prisma.user.findUnique({
+        where: { oid },
+        include: { customer: true },
+      });
+      if (user?.status === 'inactive' || user?.status === 'deleted') {
+        reply.code(403).send({
+          success: false,
+          message: 'User is inactive',
+        });
+        return;
+      }
+      if (user?.customer && user.customer.active === false) {
+        reply.code(403).send({
+          success: false,
+          message: 'Customer is inactive',
+        });
+        return;
+      }
+    }
   } catch (error) {
     request.log.warn(error, 'JWT validation failed');
     reply.code(401).send({
       success: false,
       message: 'Unauthorized',
     });
+    return;
   }
 }

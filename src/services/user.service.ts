@@ -22,6 +22,13 @@ export class UserService {
     });
   }
 
+  static async getByOidWithCustomer(oid: string) {
+    return prisma.user.findUnique({
+      where: { oid },
+      include: { role: true, customer: true },
+    });
+  }
+
   static async update(oid: string, input: UpdateUserInput) {
     return prisma.user.update({
       where: { oid },
